@@ -57,10 +57,14 @@ pub const WINT_MIN: i32 = -2147483648;
 pub const WINT_MAX: u32 = 2147483647;
 pub const SIG_ATOMIC_MIN: i32 = -2147483648;
 pub const SIG_ATOMIC_MAX: u32 = 2147483647;
-pub const IR_VERSION_MAJOR: u32 = 0;
-pub const IR_VERSION_MINOR: u32 = 1;
+pub const IR_VERSION_MAJOR: u32 = 2;
+pub const IR_VERSION_MINOR: u32 = 0;
 pub const IR_VERSION_PATCH: u32 = 0;
 pub const IRDescriptorRangeOffsetAppend: u32 = 4294967295;
+pub const IRIntrinsicMaskClosestHitAll: u32 = 2147483647;
+pub const IRIntrinsicMaskMissShaderAll: u32 = 32767;
+pub const IRIntrinsicMaskCallableShaderAll: u32 = 28735;
+pub const IRRayTracingUnlimitedRecursionDepth: i32 = -1;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRError {
@@ -93,7 +97,7 @@ pub struct IRShaderReflection {
 }
 pub type wchar_t = ::std::os::raw::c_int;
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct max_align_t {
     pub __clang_max_align_nonce1: ::std::os::raw::c_longlong,
     pub __clang_max_align_nonce2: f64,
@@ -127,6 +131,15 @@ pub type __uint64_t = ::std::os::raw::c_ulonglong;
 pub union __mbstate_t {
     pub __mbstate8: [::std::os::raw::c_char; 128usize],
     pub _mbstateL: ::std::os::raw::c_longlong,
+}
+impl Default for __mbstate_t {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 pub type u_int8_t = ::std::os::raw::c_uchar;
 pub type u_int16_t = ::std::os::raw::c_ushort;
@@ -651,11 +664,29 @@ pub struct IRDescriptorRange {
     pub RegisterSpace: u32,
     pub OffsetInDescriptorsFromTableStart: u32,
 }
+impl Default for IRDescriptorRange {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRRootDescriptorTable {
     pub NumDescriptorRanges: u32,
     pub pDescriptorRanges: *const IRDescriptorRange,
+}
+impl Default for IRRootDescriptorTable {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -663,16 +694,24 @@ pub struct IRVertexInputTable {
     pub NumDescriptorRanges: u32,
     pub pDescriptorRanges: *const IRDescriptorRange,
 }
-pub type IRVertexInput = IRVertexInputTable;
+impl Default for IRVertexInputTable {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct IRRootConstants {
     pub ShaderRegister: u32,
     pub RegisterSpace: u32,
     pub Num32BitValues: u32,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct IRRootDescriptor {
     pub ShaderRegister: u32,
     pub RegisterSpace: u32,
@@ -697,7 +736,7 @@ pub enum IRRootParameterType {
 #[derive(Copy, Clone)]
 pub struct IRRootParameter {
     pub ParameterType: IRRootParameterType,
-    pub __bindgen_anon_1: IRRootParameter__bindgen_ty_1,
+    pub u1: IRRootParameter__bindgen_ty_1,
     pub ShaderVisibility: IRShaderVisibility,
 }
 #[repr(C)]
@@ -706,6 +745,24 @@ pub union IRRootParameter__bindgen_ty_1 {
     pub DescriptorTable: IRRootDescriptorTable,
     pub Constants: IRRootConstants,
     pub Descriptor: IRRootDescriptor,
+}
+impl Default for IRRootParameter__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRRootParameter {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -733,6 +790,13 @@ impl IRCompatibilityFlags {
 impl IRCompatibilityFlags {
     pub const IRCompatibilityFlagPositionInvariance: IRCompatibilityFlags =
         IRCompatibilityFlags(16);
+}
+impl IRCompatibilityFlags {
+    pub const IRCompatibilityFlagSampleNanToZero: IRCompatibilityFlags = IRCompatibilityFlags(32);
+}
+impl IRCompatibilityFlags {
+    pub const IRCompatibilityFlagTexWriteRoundingRTZ: IRCompatibilityFlags =
+        IRCompatibilityFlags(64);
 }
 impl ::std::ops::BitOr<IRCompatibilityFlags> for IRCompatibilityFlags {
     type Output = Self;
@@ -780,6 +844,15 @@ pub struct IRStaticSamplerDescriptor {
     pub RegisterSpace: u32,
     pub ShaderVisibility: IRShaderVisibility,
 }
+impl Default for IRStaticSamplerDescriptor {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 impl IRRootSignatureVersion {
     pub const IRRootSignatureVersion_1_0: IRRootSignatureVersion =
         IRRootSignatureVersion::IRRootSignatureVersion_1;
@@ -799,6 +872,15 @@ pub struct IRRootSignatureDescriptor {
     pub pStaticSamplers: *const IRStaticSamplerDescriptor,
     pub Flags: IRRootSignatureFlags,
 }
+impl Default for IRRootSignatureDescriptor {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRDescriptorRange1 {
@@ -809,11 +891,29 @@ pub struct IRDescriptorRange1 {
     pub Flags: IRDescriptorRangeFlags,
     pub OffsetInDescriptorsFromTableStart: u32,
 }
+impl Default for IRDescriptorRange1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRRootDescriptorTable1 {
     pub NumDescriptorRanges: u32,
-    pub pDescriptorRanges: *const IRDescriptorRange1,
+    pub pDescriptorRanges: *mut IRDescriptorRange1,
+}
+impl Default for IRRootDescriptorTable1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -822,11 +922,20 @@ pub struct IRRootDescriptor1 {
     pub RegisterSpace: u32,
     pub Flags: IRRootDescriptorFlags,
 }
+impl Default for IRRootDescriptor1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct IRRootParameter1 {
     pub ParameterType: IRRootParameterType,
-    pub __bindgen_anon_1: IRRootParameter1__bindgen_ty_1,
+    pub u1: IRRootParameter1__bindgen_ty_1,
     pub ShaderVisibility: IRShaderVisibility,
 }
 #[repr(C)]
@@ -836,26 +945,71 @@ pub union IRRootParameter1__bindgen_ty_1 {
     pub Constants: IRRootConstants,
     pub Descriptor: IRRootDescriptor1,
 }
+impl Default for IRRootParameter1__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRRootParameter1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRRootSignatureDescriptor1 {
     pub NumParameters: u32,
-    pub pParameters: *const IRRootParameter1,
+    pub pParameters: *mut IRRootParameter1,
     pub NumStaticSamplers: u32,
-    pub pStaticSamplers: *const IRStaticSamplerDescriptor,
+    pub pStaticSamplers: *mut IRStaticSamplerDescriptor,
     pub Flags: IRRootSignatureFlags,
+}
+impl Default for IRRootSignatureDescriptor1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct IRVersionedRootSignatureDescriptor {
     pub version: IRRootSignatureVersion,
-    pub __bindgen_anon_1: IRVersionedRootSignatureDescriptor__bindgen_ty_1,
+    pub u1: IRVersionedRootSignatureDescriptor__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedRootSignatureDescriptor__bindgen_ty_1 {
     pub desc_1_0: IRRootSignatureDescriptor,
     pub desc_1_1: IRRootSignatureDescriptor1,
+}
+impl Default for IRVersionedRootSignatureDescriptor__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedRootSignatureDescriptor {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -864,8 +1018,17 @@ pub struct IRInputElementDescriptor1 {
     pub format: IRFormat,
     pub inputSlot: u32,
     pub alignedByteOffset: u32,
-    pub inputSlotClass: IRInputClassification,
     pub instanceDataStepRate: u32,
+    pub inputSlotClass: IRInputClassification,
+}
+impl Default for IRInputElementDescriptor1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -873,6 +1036,15 @@ pub struct IRInputLayoutDescriptor1 {
     pub semanticNames: [*const ::std::os::raw::c_char; 31usize],
     pub inputElementDescs: [IRInputElementDescriptor1; 31usize],
     pub numElements: u32,
+}
+impl Default for IRInputLayoutDescriptor1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -883,13 +1055,78 @@ pub enum IRInputLayoutDescriptorVersion {
 #[derive(Copy, Clone)]
 pub struct IRVersionedInputLayoutDescriptor {
     pub version: IRInputLayoutDescriptorVersion,
-    pub __bindgen_anon_1: IRVersionedInputLayoutDescriptor__bindgen_ty_1,
+    pub u1: IRVersionedInputLayoutDescriptor__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedInputLayoutDescriptor__bindgen_ty_1 {
     pub desc_1_0: IRInputLayoutDescriptor1,
 }
+impl Default for IRVersionedInputLayoutDescriptor__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedInputLayoutDescriptor {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum IRHitGroupType {
+    IRHitGroupTypeTriangles = 0,
+    IRHitGroupTypeProceduralPrimitive = 1,
+}
+impl IRRaytracingPipelineFlags {
+    pub const IRRaytracingPipelineFlagNone: IRRaytracingPipelineFlags =
+        IRRaytracingPipelineFlags(0);
+}
+impl IRRaytracingPipelineFlags {
+    pub const IRRaytracingPipelineFlagSkipTriangles: IRRaytracingPipelineFlags =
+        IRRaytracingPipelineFlags(256);
+}
+impl IRRaytracingPipelineFlags {
+    pub const IRRaytracingPipelineFlagSkipProceduralPrimitives: IRRaytracingPipelineFlags =
+        IRRaytracingPipelineFlags(512);
+}
+impl ::std::ops::BitOr<IRRaytracingPipelineFlags> for IRRaytracingPipelineFlags {
+    type Output = Self;
+    #[inline]
+    fn bitor(self, other: Self) -> Self {
+        IRRaytracingPipelineFlags(self.0 | other.0)
+    }
+}
+impl ::std::ops::BitOrAssign for IRRaytracingPipelineFlags {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: IRRaytracingPipelineFlags) {
+        self.0 |= rhs.0;
+    }
+}
+impl ::std::ops::BitAnd<IRRaytracingPipelineFlags> for IRRaytracingPipelineFlags {
+    type Output = Self;
+    #[inline]
+    fn bitand(self, other: Self) -> Self {
+        IRRaytracingPipelineFlags(self.0 & other.0)
+    }
+}
+impl ::std::ops::BitAndAssign for IRRaytracingPipelineFlags {
+    #[inline]
+    fn bitand_assign(&mut self, rhs: IRRaytracingPipelineFlags) {
+        self.0 &= rhs.0;
+    }
+}
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub struct IRRaytracingPipelineFlags(pub ::std::os::raw::c_uint);
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRErrorCode {
@@ -904,10 +1141,13 @@ pub enum IRErrorCode {
     IRErrorCodeCompilationError = 8,
     IRErrorCodeFailedToSynthesizeStageInFunction = 9,
     IRErrorCodeFailedToSynthesizeStreamOutFunction = 10,
-    IRErrorCodeFailedToSynthesizeIntersectionWrapperFunction = 11,
+    IRErrorCodeFailedToSynthesizeIndirectIntersectionFunction = 11,
     IRErrorCodeUnableToVerifyModule = 12,
     IRErrorCodeUnableToLinkModule = 13,
-    IRErrorCodeUnknown = 14,
+    IRErrorCodeUnrecognizedDXILHeader = 14,
+    IRErrorCodeInvalidRaytracingAttribute = 15,
+    IRErrorCodeNullHullShaderInputOutputMismatch = 16,
+    IRErrorCodeUnknown = 17,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -926,6 +1166,10 @@ impl IRCompilerValidationFlags {
 impl IRCompilerValidationFlags {
     pub const IRCompilerValidationFlagValidateAllResourcesBound: IRCompilerValidationFlags =
         IRCompilerValidationFlags(2);
+}
+impl IRCompilerValidationFlags {
+    pub const IRCompilerValidationFlagValidateDXIL: IRCompilerValidationFlags =
+        IRCompilerValidationFlags(4);
 }
 impl IRCompilerValidationFlags {
     pub const IRCompilerValidationFlagAll: IRCompilerValidationFlags =
@@ -986,7 +1230,7 @@ pub enum IRGPUFamily {
     IRGPUFamilyApple6 = 1006,
     IRGPUFamilyApple7 = 1007,
     IRGPUFamilyApple8 = 1008,
-    IRGPUFamilyMac2 = 2002,
+    IRGPUFamilyApple9 = 1009,
     IRGPUFamilyMetal3 = 5001,
 }
 #[repr(u32)]
@@ -1010,13 +1254,22 @@ pub struct IRFunctionConstant {
     pub name: *const ::std::os::raw::c_char,
     pub type_: IRFunctionConstantType,
 }
+impl Default for IRFunctionConstant {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum IRReflectionVersion {
     IRReflectionVersion_1_0 = 1,
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct IRCSInfo_1_0 {
     pub tg_size: [u32; 3usize],
 }
@@ -1024,18 +1277,45 @@ pub struct IRCSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedCSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedCSInfo__bindgen_ty_1,
+    pub u1: IRVersionedCSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedCSInfo__bindgen_ty_1 {
     pub info_1_0: IRCSInfo_1_0,
 }
+impl Default for IRVersionedCSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedCSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRVertexInputInfo_1_0 {
     pub name: *const ::std::os::raw::c_char,
     pub attributeIndex: u8,
+}
+impl Default for IRVertexInputInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1047,19 +1327,46 @@ pub struct IRVSInfo_1_0 {
     pub vertex_inputs: *mut IRVertexInputInfo_1_0,
     pub num_vertex_inputs: usize,
 }
+impl Default for IRVSInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct IRVersionedVSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedVSInfo__bindgen_ty_1,
+    pub u1: IRVersionedVSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedVSInfo__bindgen_ty_1 {
     pub info_1_0: IRVSInfo_1_0,
 }
+impl Default for IRVersionedVSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedVSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct IRFSInfo_1_0 {
     pub num_render_targets: ::std::os::raw::c_int,
     pub rt_index_int: u8,
@@ -1069,18 +1376,45 @@ pub struct IRFSInfo_1_0 {
 #[derive(Copy, Clone)]
 pub struct IRVersionedFSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedFSInfo__bindgen_ty_1,
+    pub u1: IRVersionedFSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedFSInfo__bindgen_ty_1 {
     pub info_1_0: IRFSInfo_1_0,
 }
+impl Default for IRVersionedFSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedFSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct IRVertexOutputInfo_1_0 {
     pub name: *const ::std::os::raw::c_char,
     pub attributeIndex: u8,
+}
+impl Default for IRVertexOutputInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1095,16 +1429,43 @@ pub struct IRGSInfo_1_0 {
     pub max_payload_size_in_bytes: u32,
     pub instance_count: u32,
 }
+impl Default for IRGSInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct IRVersionedGSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedGSInfo__bindgen_ty_1,
+    pub u1: IRVersionedGSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedGSInfo__bindgen_ty_1 {
     pub info_1_0: IRGSInfo_1_0,
+}
+impl Default for IRVersionedGSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedGSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1124,16 +1485,43 @@ pub struct IRHSInfo_1_0 {
     pub tessellation_type_half: bool,
     pub max_tessellation_factor: f32,
 }
+impl Default for IRHSInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct IRVersionedHSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedHSInfo__bindgen_ty_1,
+    pub u1: IRVersionedHSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedHSInfo__bindgen_ty_1 {
     pub info_1_0: IRHSInfo_1_0,
+}
+impl Default for IRVersionedHSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedHSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1145,16 +1533,167 @@ pub struct IRDSInfo_1_0 {
     pub patch_constants_size: u32,
     pub tessellation_type_half: bool,
 }
+impl Default for IRDSInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct IRVersionedDSInfo {
     pub version: IRReflectionVersion,
-    pub __bindgen_anon_1: IRVersionedDSInfo__bindgen_ty_1,
+    pub u1: IRVersionedDSInfo__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union IRVersionedDSInfo__bindgen_ty_1 {
     pub info_1_0: IRDSInfo_1_0,
+}
+impl Default for IRVersionedDSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedDSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum IRMeshShaderPrimitiveTopology {
+    IRMeshShaderPrimitiveTopologyPoint = 0,
+    IRMeshShaderPrimitiveTopologyLine = 1,
+    IRMeshShaderPrimitiveTopologyTriangle = 2,
+    IRMeshShaderPrimitiveTopologyUndefined = 3,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct IRMSInfo_1_0 {
+    pub max_vertex_output_count: u32,
+    pub max_primitive_output_count: u32,
+    pub primitive_topology: IRMeshShaderPrimitiveTopology,
+    pub max_payload_size_in_bytes: u32,
+    pub num_threads: [u32; 3usize],
+}
+impl Default for IRMSInfo_1_0 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct IRVersionedMSInfo {
+    pub version: IRReflectionVersion,
+    pub u1: IRVersionedMSInfo__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union IRVersionedMSInfo__bindgen_ty_1 {
+    pub info_1_0: IRMSInfo_1_0,
+}
+impl Default for IRVersionedMSInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedMSInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRASInfo_1_0 {
+    pub num_threads: [u32; 3usize],
+    pub max_payload_size_in_bytes: u32,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct IRVersionedASInfo {
+    pub version: IRReflectionVersion,
+    pub u1: IRVersionedASInfo__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union IRVersionedASInfo__bindgen_ty_1 {
+    pub info_1_0: IRASInfo_1_0,
+}
+impl Default for IRVersionedASInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedASInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct IRRTInfo_1_0 {
+    pub is_indirect_intersection_function: bool,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct IRVersionedRTInfo {
+    pub version: IRReflectionVersion,
+    pub u1: IRVersionedRTInfo__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union IRVersionedRTInfo__bindgen_ty_1 {
+    pub info_1_0: IRRTInfo_1_0,
+}
+impl Default for IRVersionedRTInfo__bindgen_ty_1 {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
+}
+impl Default for IRVersionedRTInfo {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -1165,6 +1704,15 @@ pub struct IRResourceLocation {
     pub topLevelOffset: u32,
     pub sizeBytes: u64,
     pub resourceName: *const ::std::os::raw::c_char,
+}
+impl Default for IRResourceLocation {
+    fn default() -> Self {
+        let mut s = ::std::mem::MaybeUninit::<Self>::uninit();
+        unsafe {
+            ::std::ptr::write_bytes(s.as_mut_ptr(), 0, 1);
+            s.assume_init()
+        }
+    }
 }
 pub type __builtin_va_list = *mut ::std::os::raw::c_char;
 extern crate libloading;
@@ -1194,9 +1742,16 @@ pub struct metal_irconverter {
     pub IRCompilerDestroy: unsafe extern "C" fn(compiler: *mut IRCompiler),
     pub IRCompilerAllocCompileAndLink: unsafe extern "C" fn(
         compiler: *mut IRCompiler,
-        entryPointNames: *const *const ::std::os::raw::c_char,
-        entryPointCount: usize,
+        entryPointName: *const ::std::os::raw::c_char,
         input: *const IRObject,
+        error: *mut *mut IRError,
+    ) -> *mut IRObject,
+    pub IRCompilerAllocCombineCompileAndLink: unsafe extern "C" fn(
+        compiler: *mut IRCompiler,
+        intersectionFunctionEntryPointName: *const ::std::os::raw::c_char,
+        intersectionFunctionBytecode: *const IRObject,
+        anyHitFunctionEntryPointName: *const ::std::os::raw::c_char,
+        anyHitFunctionBytecode: *const IRObject,
         error: *mut *mut IRError,
     ) -> *mut IRObject,
     pub IRObjectGetMetalLibBinary: unsafe extern "C" fn(
@@ -1221,6 +1776,24 @@ pub struct metal_irconverter {
     ) -> bool,
     pub IRCompilerSetGlobalRootSignature:
         unsafe extern "C" fn(compiler: *mut IRCompiler, rootSignature: *const IRRootSignature),
+    pub IRCompilerSetLocalRootSignature:
+        unsafe extern "C" fn(compiler: *mut IRCompiler, rootSignature: *const IRRootSignature),
+    pub IRCompilerSetHitgroupType:
+        unsafe extern "C" fn(compiler: *mut IRCompiler, hitGroupType: IRHitGroupType),
+    pub IRObjectGatherRaytracingIntrinsics: unsafe extern "C" fn(
+        input: *mut IRObject,
+        entryPoint: *const ::std::os::raw::c_char,
+    ) -> u64,
+    pub IRCompilerSetRayTracingPipelineArguments: unsafe extern "C" fn(
+        compiler: *mut IRCompiler,
+        maxAttributeSizeInBytes: u32,
+        raytracingPipelineFlags: IRRaytracingPipelineFlags,
+        chs: u64,
+        miss: u64,
+        anyHit: u64,
+        callableArgs: u64,
+        maxRecursiveDepth: ::std::os::raw::c_int,
+    ),
     pub IRCompilerSetCompatibilityFlags:
         unsafe extern "C" fn(compiler: *mut IRCompiler, flags: IRCompatibilityFlags),
     pub IRCompilerSetInputTopology:
@@ -1235,10 +1808,19 @@ pub struct metal_irconverter {
         compiler: *mut IRCompiler,
         configuration: IRDepthFeedbackConfiguration,
     ),
+    pub IRCompilerSetIntRTMask: unsafe extern "C" fn(compiler: *mut IRCompiler, intRTMask: u8),
+    pub IRMetalLibSynthesizeIndirectRayDispatchFunction:
+        unsafe extern "C" fn(compiler: *const IRCompiler, binary: *mut IRMetalLibBinary) -> bool,
+    pub IRMetalLibSynthesizeIndirectIntersectionFunction:
+        unsafe extern "C" fn(compiler: *const IRCompiler, binary: *mut IRMetalLibBinary) -> bool,
     pub IRCompilerSetEntryPointName:
         unsafe extern "C" fn(compiler: *mut IRCompiler, newName: *const ::std::os::raw::c_char),
     pub IRCompilerSetMinimumGPUFamily:
         unsafe extern "C" fn(compiler: *mut IRCompiler, family: IRGPUFamily),
+    pub IRCompilerIgnoreRootSignature:
+        unsafe extern "C" fn(compiler: *mut IRCompiler, ignoreEmbeddedRootSignature: bool),
+    pub IRCompilerIgnoreDebugInformation:
+        unsafe extern "C" fn(compiler: *mut IRCompiler, ignoreDebugInformation: bool),
     pub IRCompilerSetMinimumDeploymentTarget: unsafe extern "C" fn(
         compiler: *mut IRCompiler,
         operatingSystem: IROperatingSystem,
@@ -1302,6 +1884,21 @@ pub struct metal_irconverter {
         version: IRReflectionVersion,
         dsinfo: *mut IRVersionedDSInfo,
     ) -> bool,
+    pub IRShaderReflectionCopyMeshInfo: unsafe extern "C" fn(
+        reflection: *const IRShaderReflection,
+        version: IRReflectionVersion,
+        msinfo: *mut IRVersionedMSInfo,
+    ) -> bool,
+    pub IRShaderReflectionCopyAmplificationInfo: unsafe extern "C" fn(
+        reflection: *const IRShaderReflection,
+        version: IRReflectionVersion,
+        asinfo: *mut IRVersionedASInfo,
+    ) -> bool,
+    pub IRShaderReflectionCopyRaytracingInfo: unsafe extern "C" fn(
+        reflection: *const IRShaderReflection,
+        version: IRReflectionVersion,
+        rtinfo: *mut IRVersionedRTInfo,
+    ) -> bool,
     pub IRShaderReflectionReleaseComputeInfo:
         unsafe extern "C" fn(csinfo: *mut IRVersionedCSInfo) -> bool,
     pub IRShaderReflectionReleaseVertexInfo:
@@ -1314,6 +1911,12 @@ pub struct metal_irconverter {
         unsafe extern "C" fn(hsinfo: *mut IRVersionedHSInfo) -> bool,
     pub IRShaderReflectionReleaseDomainInfo:
         unsafe extern "C" fn(dsinfo: *mut IRVersionedDSInfo) -> bool,
+    pub IRShaderReflectionReleaseMeshInfo:
+        unsafe extern "C" fn(msinfo: *mut IRVersionedMSInfo) -> bool,
+    pub IRShaderReflectionReleaseAmplificationInfo:
+        unsafe extern "C" fn(asinfo: *mut IRVersionedASInfo) -> bool,
+    pub IRShaderReflectionReleaseRaytracingInfo:
+        unsafe extern "C" fn(rtinfo: *mut IRVersionedRTInfo) -> bool,
     pub IRShaderReflectionGetResourceCount:
         unsafe extern "C" fn(reflection: *const IRShaderReflection) -> usize,
     pub IRShaderReflectionGetResourceLocations: unsafe extern "C" fn(
@@ -1326,12 +1929,34 @@ pub struct metal_irconverter {
         rootSignature: *const IRRootSignature,
         resourceLocations: *mut IRResourceLocation,
     ),
-    pub IRShaderReflectionSerialize:
+    pub IRShaderReflectionAllocStringAndSerialize:
         unsafe extern "C" fn(reflection: *mut IRShaderReflection) -> *const ::std::os::raw::c_char,
+    pub IRShaderReflectionFreeString:
+        unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
     pub IRShaderReflectionDeserialize: unsafe extern "C" fn(
         blob: *const ::std::os::raw::c_char,
         reflection: *mut IRShaderReflection,
     ),
+    pub IRVersionedRootSignatureDescriptorAllocStringAndSerialize:
+        unsafe extern "C" fn(
+            rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+        ) -> *const ::std::os::raw::c_char,
+    pub IRVersionedRootSignatureDescriptorFreeString:
+        unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
+    pub IRVersionedRootSignatureDescriptorDeserialize: unsafe extern "C" fn(
+        serialized: *const ::std::os::raw::c_char,
+        rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+    ) -> bool,
+    pub IRInputLayoutDescriptor1AllocStringAndSerialize:
+        unsafe extern "C" fn(
+            inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+        ) -> *const ::std::os::raw::c_char,
+    pub IRInputLayoutDescriptor1FreeString:
+        unsafe extern "C" fn(serialized: *const ::std::os::raw::c_char),
+    pub IRInputLayoutDescriptor1Deserialize: unsafe extern "C" fn(
+        serialized: *const ::std::os::raw::c_char,
+        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    ) -> bool,
 }
 impl metal_irconverter {
     pub unsafe fn new<P>(path: P) -> Result<Self, ::libloading::Error>
@@ -1367,6 +1992,9 @@ impl metal_irconverter {
         let IRCompilerAllocCompileAndLink = __library
             .get(b"IRCompilerAllocCompileAndLink\0")
             .map(|sym| *sym)?;
+        let IRCompilerAllocCombineCompileAndLink = __library
+            .get(b"IRCompilerAllocCombineCompileAndLink\0")
+            .map(|sym| *sym)?;
         let IRObjectGetMetalLibBinary = __library
             .get(b"IRObjectGetMetalLibBinary\0")
             .map(|sym| *sym)?;
@@ -1379,6 +2007,18 @@ impl metal_irconverter {
         let IRObjectGetReflection = __library.get(b"IRObjectGetReflection\0").map(|sym| *sym)?;
         let IRCompilerSetGlobalRootSignature = __library
             .get(b"IRCompilerSetGlobalRootSignature\0")
+            .map(|sym| *sym)?;
+        let IRCompilerSetLocalRootSignature = __library
+            .get(b"IRCompilerSetLocalRootSignature\0")
+            .map(|sym| *sym)?;
+        let IRCompilerSetHitgroupType = __library
+            .get(b"IRCompilerSetHitgroupType\0")
+            .map(|sym| *sym)?;
+        let IRObjectGatherRaytracingIntrinsics = __library
+            .get(b"IRObjectGatherRaytracingIntrinsics\0")
+            .map(|sym| *sym)?;
+        let IRCompilerSetRayTracingPipelineArguments = __library
+            .get(b"IRCompilerSetRayTracingPipelineArguments\0")
             .map(|sym| *sym)?;
         let IRCompilerSetCompatibilityFlags = __library
             .get(b"IRCompilerSetCompatibilityFlags\0")
@@ -1395,11 +2035,24 @@ impl metal_irconverter {
         let IRCompilerSetDepthFeedbackConfiguration = __library
             .get(b"IRCompilerSetDepthFeedbackConfiguration\0")
             .map(|sym| *sym)?;
+        let IRCompilerSetIntRTMask = __library.get(b"IRCompilerSetIntRTMask\0").map(|sym| *sym)?;
+        let IRMetalLibSynthesizeIndirectRayDispatchFunction = __library
+            .get(b"IRMetalLibSynthesizeIndirectRayDispatchFunction\0")
+            .map(|sym| *sym)?;
+        let IRMetalLibSynthesizeIndirectIntersectionFunction = __library
+            .get(b"IRMetalLibSynthesizeIndirectIntersectionFunction\0")
+            .map(|sym| *sym)?;
         let IRCompilerSetEntryPointName = __library
             .get(b"IRCompilerSetEntryPointName\0")
             .map(|sym| *sym)?;
         let IRCompilerSetMinimumGPUFamily = __library
             .get(b"IRCompilerSetMinimumGPUFamily\0")
+            .map(|sym| *sym)?;
+        let IRCompilerIgnoreRootSignature = __library
+            .get(b"IRCompilerIgnoreRootSignature\0")
+            .map(|sym| *sym)?;
+        let IRCompilerIgnoreDebugInformation = __library
+            .get(b"IRCompilerIgnoreDebugInformation\0")
             .map(|sym| *sym)?;
         let IRCompilerSetMinimumDeploymentTarget = __library
             .get(b"IRCompilerSetMinimumDeploymentTarget\0")
@@ -1452,6 +2105,15 @@ impl metal_irconverter {
         let IRShaderReflectionCopyDomainInfo = __library
             .get(b"IRShaderReflectionCopyDomainInfo\0")
             .map(|sym| *sym)?;
+        let IRShaderReflectionCopyMeshInfo = __library
+            .get(b"IRShaderReflectionCopyMeshInfo\0")
+            .map(|sym| *sym)?;
+        let IRShaderReflectionCopyAmplificationInfo = __library
+            .get(b"IRShaderReflectionCopyAmplificationInfo\0")
+            .map(|sym| *sym)?;
+        let IRShaderReflectionCopyRaytracingInfo = __library
+            .get(b"IRShaderReflectionCopyRaytracingInfo\0")
+            .map(|sym| *sym)?;
         let IRShaderReflectionReleaseComputeInfo = __library
             .get(b"IRShaderReflectionReleaseComputeInfo\0")
             .map(|sym| *sym)?;
@@ -1470,6 +2132,15 @@ impl metal_irconverter {
         let IRShaderReflectionReleaseDomainInfo = __library
             .get(b"IRShaderReflectionReleaseDomainInfo\0")
             .map(|sym| *sym)?;
+        let IRShaderReflectionReleaseMeshInfo = __library
+            .get(b"IRShaderReflectionReleaseMeshInfo\0")
+            .map(|sym| *sym)?;
+        let IRShaderReflectionReleaseAmplificationInfo = __library
+            .get(b"IRShaderReflectionReleaseAmplificationInfo\0")
+            .map(|sym| *sym)?;
+        let IRShaderReflectionReleaseRaytracingInfo = __library
+            .get(b"IRShaderReflectionReleaseRaytracingInfo\0")
+            .map(|sym| *sym)?;
         let IRShaderReflectionGetResourceCount = __library
             .get(b"IRShaderReflectionGetResourceCount\0")
             .map(|sym| *sym)?;
@@ -1482,11 +2153,32 @@ impl metal_irconverter {
         let IRRootSignatureGetResourceLocations = __library
             .get(b"IRRootSignatureGetResourceLocations\0")
             .map(|sym| *sym)?;
-        let IRShaderReflectionSerialize = __library
-            .get(b"IRShaderReflectionSerialize\0")
+        let IRShaderReflectionAllocStringAndSerialize = __library
+            .get(b"IRShaderReflectionAllocStringAndSerialize\0")
+            .map(|sym| *sym)?;
+        let IRShaderReflectionFreeString = __library
+            .get(b"IRShaderReflectionFreeString\0")
             .map(|sym| *sym)?;
         let IRShaderReflectionDeserialize = __library
             .get(b"IRShaderReflectionDeserialize\0")
+            .map(|sym| *sym)?;
+        let IRVersionedRootSignatureDescriptorAllocStringAndSerialize = __library
+            .get(b"IRVersionedRootSignatureDescriptorAllocStringAndSerialize\0")
+            .map(|sym| *sym)?;
+        let IRVersionedRootSignatureDescriptorFreeString = __library
+            .get(b"IRVersionedRootSignatureDescriptorFreeString\0")
+            .map(|sym| *sym)?;
+        let IRVersionedRootSignatureDescriptorDeserialize = __library
+            .get(b"IRVersionedRootSignatureDescriptorDeserialize\0")
+            .map(|sym| *sym)?;
+        let IRInputLayoutDescriptor1AllocStringAndSerialize = __library
+            .get(b"IRInputLayoutDescriptor1AllocStringAndSerialize\0")
+            .map(|sym| *sym)?;
+        let IRInputLayoutDescriptor1FreeString = __library
+            .get(b"IRInputLayoutDescriptor1FreeString\0")
+            .map(|sym| *sym)?;
+        let IRInputLayoutDescriptor1Deserialize = __library
+            .get(b"IRInputLayoutDescriptor1Deserialize\0")
             .map(|sym| *sym)?;
         Ok(metal_irconverter {
             __library,
@@ -1503,18 +2195,28 @@ impl metal_irconverter {
             IRCompilerCreate,
             IRCompilerDestroy,
             IRCompilerAllocCompileAndLink,
+            IRCompilerAllocCombineCompileAndLink,
             IRObjectGetMetalLibBinary,
             IRCompilerSetStageInGenerationMode,
             IRMetalLibSynthesizeStageInFunction,
             IRObjectGetReflection,
             IRCompilerSetGlobalRootSignature,
+            IRCompilerSetLocalRootSignature,
+            IRCompilerSetHitgroupType,
+            IRObjectGatherRaytracingIntrinsics,
+            IRCompilerSetRayTracingPipelineArguments,
             IRCompilerSetCompatibilityFlags,
             IRCompilerSetInputTopology,
             IRCompilerEnableGeometryAndTessellationEmulation,
             IRCompilerSetDualSourceBlendingConfiguration,
             IRCompilerSetDepthFeedbackConfiguration,
+            IRCompilerSetIntRTMask,
+            IRMetalLibSynthesizeIndirectRayDispatchFunction,
+            IRMetalLibSynthesizeIndirectIntersectionFunction,
             IRCompilerSetEntryPointName,
             IRCompilerSetMinimumGPUFamily,
+            IRCompilerIgnoreRootSignature,
+            IRCompilerIgnoreDebugInformation,
             IRCompilerSetMinimumDeploymentTarget,
             IRMetalLibBinaryCreate,
             IRMetalLibBinaryDestroy,
@@ -1534,18 +2236,31 @@ impl metal_irconverter {
             IRShaderReflectionCopyGeometryInfo,
             IRShaderReflectionCopyHullInfo,
             IRShaderReflectionCopyDomainInfo,
+            IRShaderReflectionCopyMeshInfo,
+            IRShaderReflectionCopyAmplificationInfo,
+            IRShaderReflectionCopyRaytracingInfo,
             IRShaderReflectionReleaseComputeInfo,
             IRShaderReflectionReleaseVertexInfo,
             IRShaderReflectionReleaseFragmentInfo,
             IRShaderReflectionReleaseGeometryInfo,
             IRShaderReflectionReleaseHullInfo,
             IRShaderReflectionReleaseDomainInfo,
+            IRShaderReflectionReleaseMeshInfo,
+            IRShaderReflectionReleaseAmplificationInfo,
+            IRShaderReflectionReleaseRaytracingInfo,
             IRShaderReflectionGetResourceCount,
             IRShaderReflectionGetResourceLocations,
             IRRootSignatureGetResourceCount,
             IRRootSignatureGetResourceLocations,
-            IRShaderReflectionSerialize,
+            IRShaderReflectionAllocStringAndSerialize,
+            IRShaderReflectionFreeString,
             IRShaderReflectionDeserialize,
+            IRVersionedRootSignatureDescriptorAllocStringAndSerialize,
+            IRVersionedRootSignatureDescriptorFreeString,
+            IRVersionedRootSignatureDescriptorDeserialize,
+            IRInputLayoutDescriptor1AllocStringAndSerialize,
+            IRInputLayoutDescriptor1FreeString,
+            IRInputLayoutDescriptor1Deserialize,
         })
     }
     pub unsafe fn IRErrorGetCode(&self, error: *const IRError) -> u32 {
@@ -1600,16 +2315,27 @@ impl metal_irconverter {
     pub unsafe fn IRCompilerAllocCompileAndLink(
         &self,
         compiler: *mut IRCompiler,
-        entryPointNames: *const *const ::std::os::raw::c_char,
-        entryPointCount: usize,
+        entryPointName: *const ::std::os::raw::c_char,
         input: *const IRObject,
         error: *mut *mut IRError,
     ) -> *mut IRObject {
-        (self.IRCompilerAllocCompileAndLink)(
+        (self.IRCompilerAllocCompileAndLink)(compiler, entryPointName, input, error)
+    }
+    pub unsafe fn IRCompilerAllocCombineCompileAndLink(
+        &self,
+        compiler: *mut IRCompiler,
+        intersectionFunctionEntryPointName: *const ::std::os::raw::c_char,
+        intersectionFunctionBytecode: *const IRObject,
+        anyHitFunctionEntryPointName: *const ::std::os::raw::c_char,
+        anyHitFunctionBytecode: *const IRObject,
+        error: *mut *mut IRError,
+    ) -> *mut IRObject {
+        (self.IRCompilerAllocCombineCompileAndLink)(
             compiler,
-            entryPointNames,
-            entryPointCount,
-            input,
+            intersectionFunctionEntryPointName,
+            intersectionFunctionBytecode,
+            anyHitFunctionEntryPointName,
+            anyHitFunctionBytecode,
             error,
         )
     }
@@ -1652,6 +2378,49 @@ impl metal_irconverter {
     ) {
         (self.IRCompilerSetGlobalRootSignature)(compiler, rootSignature)
     }
+    pub unsafe fn IRCompilerSetLocalRootSignature(
+        &self,
+        compiler: *mut IRCompiler,
+        rootSignature: *const IRRootSignature,
+    ) {
+        (self.IRCompilerSetLocalRootSignature)(compiler, rootSignature)
+    }
+    pub unsafe fn IRCompilerSetHitgroupType(
+        &self,
+        compiler: *mut IRCompiler,
+        hitGroupType: IRHitGroupType,
+    ) {
+        (self.IRCompilerSetHitgroupType)(compiler, hitGroupType)
+    }
+    pub unsafe fn IRObjectGatherRaytracingIntrinsics(
+        &self,
+        input: *mut IRObject,
+        entryPoint: *const ::std::os::raw::c_char,
+    ) -> u64 {
+        (self.IRObjectGatherRaytracingIntrinsics)(input, entryPoint)
+    }
+    pub unsafe fn IRCompilerSetRayTracingPipelineArguments(
+        &self,
+        compiler: *mut IRCompiler,
+        maxAttributeSizeInBytes: u32,
+        raytracingPipelineFlags: IRRaytracingPipelineFlags,
+        chs: u64,
+        miss: u64,
+        anyHit: u64,
+        callableArgs: u64,
+        maxRecursiveDepth: ::std::os::raw::c_int,
+    ) {
+        (self.IRCompilerSetRayTracingPipelineArguments)(
+            compiler,
+            maxAttributeSizeInBytes,
+            raytracingPipelineFlags,
+            chs,
+            miss,
+            anyHit,
+            callableArgs,
+            maxRecursiveDepth,
+        )
+    }
     pub unsafe fn IRCompilerSetCompatibilityFlags(
         &self,
         compiler: *mut IRCompiler,
@@ -1687,6 +2456,23 @@ impl metal_irconverter {
     ) {
         (self.IRCompilerSetDepthFeedbackConfiguration)(compiler, configuration)
     }
+    pub unsafe fn IRCompilerSetIntRTMask(&self, compiler: *mut IRCompiler, intRTMask: u8) {
+        (self.IRCompilerSetIntRTMask)(compiler, intRTMask)
+    }
+    pub unsafe fn IRMetalLibSynthesizeIndirectRayDispatchFunction(
+        &self,
+        compiler: *const IRCompiler,
+        binary: *mut IRMetalLibBinary,
+    ) -> bool {
+        (self.IRMetalLibSynthesizeIndirectRayDispatchFunction)(compiler, binary)
+    }
+    pub unsafe fn IRMetalLibSynthesizeIndirectIntersectionFunction(
+        &self,
+        compiler: *const IRCompiler,
+        binary: *mut IRMetalLibBinary,
+    ) -> bool {
+        (self.IRMetalLibSynthesizeIndirectIntersectionFunction)(compiler, binary)
+    }
     pub unsafe fn IRCompilerSetEntryPointName(
         &self,
         compiler: *mut IRCompiler,
@@ -1700,6 +2486,20 @@ impl metal_irconverter {
         family: IRGPUFamily,
     ) {
         (self.IRCompilerSetMinimumGPUFamily)(compiler, family)
+    }
+    pub unsafe fn IRCompilerIgnoreRootSignature(
+        &self,
+        compiler: *mut IRCompiler,
+        ignoreEmbeddedRootSignature: bool,
+    ) {
+        (self.IRCompilerIgnoreRootSignature)(compiler, ignoreEmbeddedRootSignature)
+    }
+    pub unsafe fn IRCompilerIgnoreDebugInformation(
+        &self,
+        compiler: *mut IRCompiler,
+        ignoreDebugInformation: bool,
+    ) {
+        (self.IRCompilerIgnoreDebugInformation)(compiler, ignoreDebugInformation)
     }
     pub unsafe fn IRCompilerSetMinimumDeploymentTarget(
         &self,
@@ -1819,6 +2619,30 @@ impl metal_irconverter {
     ) -> bool {
         (self.IRShaderReflectionCopyDomainInfo)(reflection, version, dsinfo)
     }
+    pub unsafe fn IRShaderReflectionCopyMeshInfo(
+        &self,
+        reflection: *const IRShaderReflection,
+        version: IRReflectionVersion,
+        msinfo: *mut IRVersionedMSInfo,
+    ) -> bool {
+        (self.IRShaderReflectionCopyMeshInfo)(reflection, version, msinfo)
+    }
+    pub unsafe fn IRShaderReflectionCopyAmplificationInfo(
+        &self,
+        reflection: *const IRShaderReflection,
+        version: IRReflectionVersion,
+        asinfo: *mut IRVersionedASInfo,
+    ) -> bool {
+        (self.IRShaderReflectionCopyAmplificationInfo)(reflection, version, asinfo)
+    }
+    pub unsafe fn IRShaderReflectionCopyRaytracingInfo(
+        &self,
+        reflection: *const IRShaderReflection,
+        version: IRReflectionVersion,
+        rtinfo: *mut IRVersionedRTInfo,
+    ) -> bool {
+        (self.IRShaderReflectionCopyRaytracingInfo)(reflection, version, rtinfo)
+    }
     pub unsafe fn IRShaderReflectionReleaseComputeInfo(
         &self,
         csinfo: *mut IRVersionedCSInfo,
@@ -1852,6 +2676,21 @@ impl metal_irconverter {
     ) -> bool {
         (self.IRShaderReflectionReleaseDomainInfo)(dsinfo)
     }
+    pub unsafe fn IRShaderReflectionReleaseMeshInfo(&self, msinfo: *mut IRVersionedMSInfo) -> bool {
+        (self.IRShaderReflectionReleaseMeshInfo)(msinfo)
+    }
+    pub unsafe fn IRShaderReflectionReleaseAmplificationInfo(
+        &self,
+        asinfo: *mut IRVersionedASInfo,
+    ) -> bool {
+        (self.IRShaderReflectionReleaseAmplificationInfo)(asinfo)
+    }
+    pub unsafe fn IRShaderReflectionReleaseRaytracingInfo(
+        &self,
+        rtinfo: *mut IRVersionedRTInfo,
+    ) -> bool {
+        (self.IRShaderReflectionReleaseRaytracingInfo)(rtinfo)
+    }
     pub unsafe fn IRShaderReflectionGetResourceCount(
         &self,
         reflection: *const IRShaderReflection,
@@ -1878,11 +2717,14 @@ impl metal_irconverter {
     ) {
         (self.IRRootSignatureGetResourceLocations)(rootSignature, resourceLocations)
     }
-    pub unsafe fn IRShaderReflectionSerialize(
+    pub unsafe fn IRShaderReflectionAllocStringAndSerialize(
         &self,
         reflection: *mut IRShaderReflection,
     ) -> *const ::std::os::raw::c_char {
-        (self.IRShaderReflectionSerialize)(reflection)
+        (self.IRShaderReflectionAllocStringAndSerialize)(reflection)
+    }
+    pub unsafe fn IRShaderReflectionFreeString(&self, serialized: *const ::std::os::raw::c_char) {
+        (self.IRShaderReflectionFreeString)(serialized)
     }
     pub unsafe fn IRShaderReflectionDeserialize(
         &self,
@@ -1890,5 +2732,43 @@ impl metal_irconverter {
         reflection: *mut IRShaderReflection,
     ) {
         (self.IRShaderReflectionDeserialize)(blob, reflection)
+    }
+    pub unsafe fn IRVersionedRootSignatureDescriptorAllocStringAndSerialize(
+        &self,
+        rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+    ) -> *const ::std::os::raw::c_char {
+        (self.IRVersionedRootSignatureDescriptorAllocStringAndSerialize)(rootSignatureDescriptor)
+    }
+    pub unsafe fn IRVersionedRootSignatureDescriptorFreeString(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+    ) {
+        (self.IRVersionedRootSignatureDescriptorFreeString)(serialized)
+    }
+    pub unsafe fn IRVersionedRootSignatureDescriptorDeserialize(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+        rootSignatureDescriptor: *mut IRVersionedRootSignatureDescriptor,
+    ) -> bool {
+        (self.IRVersionedRootSignatureDescriptorDeserialize)(serialized, rootSignatureDescriptor)
+    }
+    pub unsafe fn IRInputLayoutDescriptor1AllocStringAndSerialize(
+        &self,
+        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    ) -> *const ::std::os::raw::c_char {
+        (self.IRInputLayoutDescriptor1AllocStringAndSerialize)(inputLayoutDescriptor)
+    }
+    pub unsafe fn IRInputLayoutDescriptor1FreeString(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+    ) {
+        (self.IRInputLayoutDescriptor1FreeString)(serialized)
+    }
+    pub unsafe fn IRInputLayoutDescriptor1Deserialize(
+        &self,
+        serialized: *const ::std::os::raw::c_char,
+        inputLayoutDescriptor: *mut IRInputLayoutDescriptor1,
+    ) -> bool {
+        (self.IRInputLayoutDescriptor1Deserialize)(serialized, inputLayoutDescriptor)
     }
 }
