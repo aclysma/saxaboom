@@ -1,3 +1,6 @@
+// Expose the raw bindings for users if they need them
+pub mod bindings;
+
 struct IRCompilerOpaque;
 struct IRObjectOpaque;
 struct IRRootSignatureOpaque;

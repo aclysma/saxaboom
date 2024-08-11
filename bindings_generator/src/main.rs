@@ -9,6 +9,7 @@ fn main() {
         .dynamic_library_name("metal_irconverter")
         .layout_tests(false)
         .default_enum_style(bindgen::EnumVariation::Rust {non_exhaustive: false})
+        .derive_default(true)
         .bitfield_enum(".*Flags$")
         .blocklist_item("__darwin.*")
         .blocklist_item("__DARWIN.*")
@@ -17,6 +18,7 @@ fn main() {
         .blocklist_item("false_")
         .blocklist_item("__bool_true_false_are_defined")
         .blocklist_item("_opaque_pthread.*")
+        .anon_fields_prefix("u")
         // Not in the DLLs provided by Apple
         .blocklist_item("IRMetalLibSynthesizeIntersectionWrapperFunction")
         .generate()
